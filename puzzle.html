@@ -1,0 +1,322 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0px;
+        padding: 0px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="myCanvas" width="600" height="400"></canvas>
+    <script>
+	var nx = 2;
+	var ny = 1;
+	var chunkWidth;
+	var chunkHeight;
+	var chunks = [];
+	var state = "none";
+	var selectedBlock;
+	var startX;
+	var startY;
+	var currentX;
+	var currentY;
+	var isGameEnd = false;
+	
+      var canvas = document.getElementById('myCanvas');
+      var context = canvas.getContext('2d');
+	  
+	  var drawImage = function(x, y, nx, ny) {
+		context.drawImage(imageObj,
+		  nx * chunkWidth,
+		  ny * chunkHeight,
+		  chunkWidth,
+		  chunkHeight,
+		  x,
+		  y,
+		  chunkWidth,
+		  chunkHeight);
+	  };
+      var imageObj = new Image();
+	  
+	  var draw = function() {
+	    context.clearRect(0, 0, canvas.width, canvas.height);
+		if (isGameEnd) {
+	      context.fillStyle = "OldLace ";
+	      context.fillRect(0, 0, canvas.width, canvas.height);
+	  	}
+		for (var i = 0; i < chunks.length; i++) {
+		  var chunk = chunks[i];
+		  var dx = currentX - startX;
+		  var dy = currentY - startY;
+		  
+		  if (selectedBlock && chunk.block == selectedBlock.block)
+		    drawImage(chunk.nowX + dx, chunk.nowY + dy, chunk.x, chunk.y) 
+		  else
+		    drawImage(chunk.nowX, chunk.nowY, chunk.x, chunk.y);  
+		}
+	  }
+
+	  var selectBlock = function(x, y) {
+		for (var i = chunks.length - 1; i >= 0 ; i--) {
+		  var chunk = chunks[i];  
+		  if (x > chunk.nowX && x < chunk.nowX + chunkWidth && y > chunk.nowY && y < chunk.nowY + chunkHeight) {	
+            console.log("Selected")		  
+  		    return chunk;
+		  }
+		}
+		return undefined;
+	  }
+	  /*
+	  var isNotBlocked = function(index, ignoredBlock) {
+	    console.log("isNotBlocked: Start for index: " + index)
+	    var chunkX = chunks[index].nowX;
+		var chunkY = chunks[index].nowX;
+		console.log("isNotBlocked: it is block: " + JSON.stringify(chunks[index]));
+		
+		console.log("isNotBlocked: Ignored block: " + ignoredBlock);
+		for (var i = index; i < chunks.length; i++) {
+		  var chunk = chunks[i];
+		  console.log("IsNotBlocked: check: " + JSON.stringify(chunk));
+		  if (chunk.block == ignoredBlock) {
+		    console.log(" ...is ignored")
+  		    continue;
+		  }
+		  console.log(abs(chunk.nowX - chunkX))
+		  console.log(abs(chunk.nowY - chunkY));
+		  if (abs(chunk.nowX - chunkX) <  chunkWidth && abs(chunk.nowY - chunkY) <  chunkHeight) {
+	        console.log(" ...is not ok")
+  		    return false;
+		  }
+		  console.log(" ...is ok")	   
+		}
+		return true;
+	  }*/
+	  
+	  var onTop = function(block) {
+		var swaped = true;
+		while (swaped) {
+		  swaped = false;
+			
+		  for (var i = 1; i < chunks.length; i++) {
+		    if (chunks[i - 1].block == block && chunks[i].block != block) {
+			  swaped = true;
+			  tmp = chunks[i - 1];
+			  chunks[i - 1] = chunks[i];
+			  chunks[i] = tmp;
+			}			
+		  }		  
+		}
+	  }
+	  
+	  var abs = function (a) {
+		if (a>0)
+		  return a;
+		else 
+		  return -a;
+	  }
+	  
+	  var blockMerge = function (blockSlave, blockMaster, dx, dy) {
+	    for (var i = 0; i < chunks.length ; i++) {
+		  var chunk = chunks[i];
+          if (chunk.block == blockSlave) {
+            chunks[i].nowX += dx;
+			chunks[i].nowY += dy;
+			chunks[i].block = blockMaster;
+		  }		  
+		}
+	  }
+	  
+	  var formBlock = function(block) {
+	    var delta = 30;
+		for (var i = 0; i < chunks.length; i++) {
+		  var masterChunk = chunks[i];
+		  
+		  if (masterChunk.block != block)
+		    continue;
+			
+		  console.log("Try combining for top: " + masterChunk.top);
+		  if (masterChunk.top != undefined)
+		    for (var j = 0; j < chunks.length; j++) {
+			//  console.log("Current block is " + chunks[j].id);
+			  
+			  console.log("READY!!")
+			  if (chunks[j].id == masterChunk.top) {
+			    var slaveChunk = chunks[j];
+								
+			//	console.log("Master is: " + JSON.stringify(masterChunk));
+				console.log("  candidate is: " + JSON.stringify(slaveChunk));
+				
+	//			console.log(abs(masterChunk.nowX - slaveChunk.nowX));
+		//		console.log(abs(masterChunk.nowY - chunkHeight - slaveChunk.nowY));
+				
+			    if (abs(masterChunk.nowX - slaveChunk.nowX) < delta && abs(masterChunk.nowY - chunkHeight - slaveChunk.nowY) < delta) {
+				  console.log("Top combining");
+                  blockMerge(slaveChunk.block, masterChunk.block, masterChunk.nowX - slaveChunk.nowX, masterChunk.nowY - chunkHeight - slaveChunk.nowY);
+				}
+			  }
+			}
+			
+		  console.log("Try combining for bottom: " + masterChunk.bottom);
+		  if (masterChunk.bottom != undefined)
+		    for (var j = 0; j < chunks.length; j++) {
+		//	  console.log("Master bottom is " + masterChunk.bottom);
+			//  console.log("Current block is " + chunks[j].id);
+			  
+			  if (chunks[j].id == masterChunk.bottom) {
+			    var slaveChunk = chunks[j];
+				
+			//	console.log("Master is: " + JSON.stringify(masterChunk));
+				console.log("  candidate is: " + JSON.stringify(slaveChunk));
+				
+			//	console.log(abs(masterChunk.nowX - slaveChunk.nowX));
+			//	console.log(abs(masterChunk.nowY - chunkHeight - slaveChunk.nowY));
+				
+			    if (abs(masterChunk.nowX - slaveChunk.nowX) < delta && abs(masterChunk.nowY + chunkHeight - slaveChunk.nowY) < delta) {
+				  blockMerge(slaveChunk.block, masterChunk.block, masterChunk.nowX - slaveChunk.nowX, masterChunk.nowY + chunkHeight - slaveChunk.nowY);
+			 	  console.log("Bottom combining");
+				}
+			  }
+			}
+			
+		  console.log("Try combining for left: " + masterChunk.left);
+		  if (masterChunk.left != undefined)
+		    for (var j = 0; j < chunks.length; j++) {
+			  console.log("Master left is " + masterChunk.left);
+			  console.log("Current block is " + chunks[j].id);
+			  
+			  if (chunks[j].id == masterChunk.left) {
+			    var slaveChunk = chunks[j];
+				
+			//	console.log("Master is: " + JSON.stringify(masterChunk));
+				console.log("  candidate is: " + JSON.stringify(slaveChunk));
+				
+			//	console.log(abs(masterChunk.nowX - slaveChunk.nowX));
+			//	console.log(abs(masterChunk.nowY - chunkHeight - slaveChunk.nowY));
+				
+			    if (abs(masterChunk.nowX - chunkWidth - slaveChunk.nowX) < delta && abs(masterChunk.nowY - slaveChunk.nowY) < delta) {
+				  blockMerge(slaveChunk.block, masterChunk.block, masterChunk.nowX - chunkWidth - slaveChunk.nowX, masterChunk.nowY - slaveChunk.nowY);
+				  console.log("Left combining");
+				}
+			  }
+			}
+			
+		  console.log("Try combining for right: " + masterChunk.right);
+		  if (masterChunk.right != undefined)
+		    for (var j = 0; j < chunks.length; j++) {
+		//	  console.log("Master right is " + masterChunk.right);
+		//	  console.log("Current block is " + chunks[j].id);
+			  
+			  if (chunks[j].id == masterChunk.right) {
+			    var slaveChunk = chunks[j];
+			
+			//	console.log("Master is: " + JSON.stringify(masterChunk));
+				console.log("  candidate is: " + JSON.stringify(slaveChunk));
+				
+		//		console.log(abs(masterChunk.nowX - slaveChunk.nowX));
+			//	console.log(abs(masterChunk.nowY - chunkHeight - slaveChunk.nowY));
+				
+			    if (abs(masterChunk.nowX + chunkWidth - slaveChunk.nowX) < delta && abs(masterChunk.nowY - slaveChunk.nowY) < delta) {
+				  blockMerge(slaveChunk.block, masterChunk.block, masterChunk.nowX + chunkWidth - slaveChunk.nowX, masterChunk.nowY - slaveChunk.nowY);
+				  console.log("Right combining");
+				}
+			  }
+			}
+        }
+	  }
+	  
+	  var checkVictory = function() {
+	    var isEnd = true;
+		for (var i = 1; i < chunks.length; i++)
+		  if (chunks[i].block != chunks[i - 1].block)
+		    isEnd = false;
+			
+		isGameEnd = isEnd;
+	  }
+	  
+	  canvas.addEventListener('click', function(event) { 
+		if (state == "idle") {
+			selectedBlock = selectBlock(event.clientX, event.clientY);
+			if (selectedBlock != undefined) {
+			  console.log("Select chunk: " + selectedBlock.id)
+			  onTop(selectedBlock.block);
+			  startX = event.clientX;
+			  startY = event.clientY;
+			  currentX = startX;
+			  currentY = startY;
+			  state = "move";
+			}
+			return;
+		}
+		
+		if (state == "move") {
+   		  for (var i = chunks.length - 1; i >= 0 ; i--) {
+			var chunk = chunks[i];
+			if (chunk.block == selectedBlock.block) {
+			  var dx = currentX - startX;
+			  var dy = currentY - startY;
+				chunks[i].nowX += dx;
+				chunks[i].nowY += dy;
+			}
+		  }
+		  
+		  formBlock(selectedBlock.block);
+		  onTop(selectedBlock.block)
+		  
+		  selectedBlock = undefined;
+		  checkVictory();
+		  draw();
+	      state = "idle";
+		  
+			
+		}		  
+	  });
+
+	  canvas.addEventListener('mousemove', function(event) {
+	    if (state != "move")
+		  return;
+		
+		currentX = event.clientX;
+		currentY = event.clientY;
+		draw();
+	   // console.log("Moving. New coords(" + currentX + "," + currentY + ")");
+      });	  
+	  
+      imageObj.onload = function() {
+		console.log(imageObj.width)
+		console.log(imageObj.height)
+	    chunkWidth = imageObj.width / nx;
+		chunkHeight = imageObj.height / ny;
+		console.log(chunkWidth);
+		console.log(chunkHeight);
+		
+		for (var i = 0; i < nx; i++) {
+		  for (var j = 0; j < ny; j++) {
+		    var block = i + j * nx; 
+		    var chunk = {
+			   x:i,
+			   y:j,
+			   id: block,
+			   block: block,
+			   left: (i == 0 ? undefined : block - 1),
+			   right: (i == nx - 1 ? undefined : block + 1),
+			   top: (j == 0 ? undefined : block - nx),
+			   bottom: (j == ny - 1 ? undefined : block + nx),
+			   nowX:Math.floor(Math.random() * (600 - chunkWidth + 1)),
+			   nowY:Math.floor(Math.random() * (400 - chunkHeight + 1)),
+			   };
+			chunks.push(chunk);
+		  }}
+		draw();
+		
+		state = "idle";
+		//console.log(chunks[36]);
+		//console.log(chunks.length);
+	  };
+      imageObj.src = 'https://www.html5canvastutorials.com/demos/assets/darth-vader.jpg';
+	  //imageObj.width = 40
+	  console.log((imageObj));
+	</script>
+  </body>
+</html>      
